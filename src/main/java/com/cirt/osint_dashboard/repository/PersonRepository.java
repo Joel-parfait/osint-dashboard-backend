@@ -5,6 +5,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -20,19 +22,18 @@ public interface PersonRepository extends MongoRepository<PersonData, String> {
        Cherche la valeur dans TOUS les champs principaux en même temps.
        L'option 'i' rend la recherche insensible à la casse.
        ============================================================ */
-
-       @Query("{ '$or': [ " +
+    @Query("{ '$or': [ " +
        "{ 'name': { '$regex': ?0, '$options': 'i' } }, " +
        "{ 'email': { '$regex': ?0, '$options': 'i' } }, " +
        "{ 'phonenumber': { '$regex': ?0, '$options': 'i' } }, " +
-       "{ 'facebook_id': { '$regex': ?0, '$options': 'i' } }, " + // NOUVEAU
-       "{ 'nui': { '$regex': ?0, '$options': 'i' } }, " +         // NOUVEAU
-       "{ 'occupation': { '$regex': ?0, '$options': 'i' } }, " +   // NOUVEAU
-       "{ 'placeofwork': { '$regex': ?0, '$options': 'i' } }, " + // NOUVEAU
+       "{ 'facebook_id': { '$regex': ?0, '$options': 'i' } }, " +
+       "{ 'nui': { '$regex': ?0, '$options': 'i' } }, " +
+       "{ 'occupation': { '$regex': ?0, '$options': 'i' } }, " +
+       "{ 'placeofwork': { '$regex': ?0, '$options': 'i' } }, " +
        "{ 'address1': { '$regex': ?0, '$options': 'i' } }, " +
        "{ 'country': { '$regex': ?0, '$options': 'i' } }" +
        "] }")
-      List<PersonData> globalSearch(String query);
+   Page<PersonData> globalSearch(String query, Pageable pageable);
 
     /* ============================================================
        2. RECHERCHES INDEXÉES (SPÉCIFIQUES)
@@ -53,11 +54,14 @@ public interface PersonRepository extends MongoRepository<PersonData, String> {
        Permet d'affiner les résultats sur le Dashboard.
        ============================================================ */
     
-    // Filtre par Pays
+    // Filtre par Pays (Insensible à la casse)
     List<PersonData> findByCountryIgnoreCase(String country);
 
     // Filtre par Sexe (M/F)
     List<PersonData> findBySexIgnoreCase(String sex);
+
+    // Filtre par Occupation (Recherche partielle insensible à la casse)
+    List<PersonData> findByOccupationContainingIgnoreCase(String occupation);
 
     /* ============================================================
        4. FULL-TEXT SEARCH (MONGODB NATIVE)

@@ -5,6 +5,9 @@ import com.cirt.osint_dashboard.repository.PersonRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -20,16 +23,25 @@ public class PersonService {
     public PersonService(PersonRepository repository) {
         this.repository = repository;
     }
+    
 
     /* ============================================================
        RECHERCHE GLOBALE (MULTI-CHAMP)
        ============================================================ */
 
+    /* ============================================================
+       RECHERCHE GLOBALE (MULTI-CHAMP) - CORRECTION CARACTÈRES SPÉCIAUX
+       ============================================================ */
     @Cacheable(value = "globalSearches", key = "#query", unless = "#result == null || #result.isEmpty()")
-    public List<PersonData> searchGlobal(String query) {
-        return repository.globalSearch(query);
-    }
-
+    public Page<PersonData> searchGlobal(String query, int page, int size) {
+    // Échappement des caractères spéciaux (+, *, etc.)
+    String safeQuery = query.replaceAll("([\\\\+\\\\*\\\\?\\\\^\\\\$\\\\(\\\\)\\\\[\\\\]\\\\{\\}\\\\.\\\\|])", "\\\\$1");
+    
+    // Création de la requête de page
+    Pageable pageable = PageRequest.of(page, size);
+    
+    return repository.globalSearch(safeQuery, pageable);
+}
     /* ============================================================
        RECHERCHES SPÉCIFIQUES & FILTRES
        ============================================================ */
@@ -97,5 +109,15 @@ public class PersonService {
     @CacheEvict(value = "addressSearches", allEntries = true)
     public void clearAddressCache() {
         System.out.println("🗑️ Cache des adresses vidé.");
+    }
+
+    @Cacheable(value = "countrySearches", key = "#country")
+    public List<PersonData> filterByCountry(String country) {
+        return repository.findByCountryIgnoreCase(country);
+    }
+
+    @Cacheable(value = "sexSearches", key = "#sex")
+    public List<PersonData> filterBySex(String sex) {
+        return repository.findBySexIgnoreCase(sex);
     }
 }
