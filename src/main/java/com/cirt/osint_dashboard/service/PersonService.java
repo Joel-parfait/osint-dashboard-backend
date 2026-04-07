@@ -9,13 +9,8 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * Person Service with Redis Caching
- *
- * Cache Strategy:
- * - Each search type has its own cache zone
- * - Cache key = search value
- * - Different TTL for different search types
- * - Manual cache clearing available
+ * Service OSINT optimisé pour le CIRT - ANTIC.
+ * Gère la logique métier et la mise en cache Redis.
  */
 @Service
 public class PersonService {
@@ -26,48 +21,46 @@ public class PersonService {
         this.repository = repository;
     }
 
-    /* =======================
-       NAME SEARCH (CACHED 20 MIN)
-       ======================= */
+    /* ============================================================
+       RECHERCHE GLOBALE (MULTI-CHAMP)
+       ============================================================ */
+
+    @Cacheable(value = "globalSearches", key = "#query", unless = "#result == null || #result.isEmpty()")
+    public List<PersonData> searchGlobal(String query) {
+        return repository.globalSearch(query);
+    }
+
+    /* ============================================================
+       RECHERCHES SPÉCIFIQUES & FILTRES
+       ============================================================ */
+    
     @Cacheable(value = "nameSearches", key = "#name", unless = "#result == null || #result.isEmpty()")
     public List<PersonData> searchByName(String name) {
-        System.out.println("🔍 [CACHE MISS] Querying MongoDB for name: " + name);
         return repository.searchByNameText(name);
     }
 
-    /* =======================
-       PHONE SEARCH (CACHED 30 MIN)
-       ======================= */
     @Cacheable(value = "phoneSearches", key = "#phone", unless = "#result == null || #result.isEmpty()")
     public List<PersonData> searchByPhone(String phone) {
-        System.out.println("🔍 [CACHE MISS] Querying MongoDB for phone: " + phone);
         return repository.findByPhonenumber(phone);
     }
 
-    /* =======================
-       EMAIL SEARCH (CACHED 30 MIN)
-       ======================= */
     @Cacheable(value = "emailSearches", key = "#email", unless = "#result == null || #result.isEmpty()")
     public List<PersonData> searchByEmail(String email) {
-        System.out.println("🔍 [CACHE MISS] Querying MongoDB for email: " + email);
         return repository.findByEmail(email);
     }
 
-    /* =======================
-       ADDRESS SEARCH (CACHED 10 MIN)
-       ======================= */
-    @Cacheable(value = "addressSearches", key = "#address + '-' + #limit", unless = "#result == null || #result.isEmpty()")
     public List<PersonData> searchByAddress(String address, int limit) {
-        System.out.println("🔍 [CACHE MISS] Querying MongoDB for address: " + address);
-        return repository.findByAddress1ContainingIgnoreCase(address)
-                .stream()
-                .limit(limit)
-                .toList();
+        return repository.findByAddress1ContainingIgnoreCase(address).stream().limit(limit).toList();
     }
 
-    /* =======================
-       SAFE FETCH ALL (NOT CACHED - TOO LARGE)
-       ======================= */
+    public List<PersonData> searchByCountry(String country) {
+        return repository.findByCountryIgnoreCase(country);
+    }
+
+    public List<PersonData> searchBySex(String sex) {
+        return repository.findBySexIgnoreCase(sex);
+    }
+
     public List<PersonData> getAllLimited(int limit) {
         return repository.findLimited(limit);
     }
@@ -76,38 +69,33 @@ public class PersonService {
         return repository.count();
     }
 
-    /* =======================
-       CACHE MANAGEMENT
-       ======================= */
+    /* ============================================================
+       GESTION DU CACHE (Requis par CacheController)
+       ============================================================ */
 
-    /**
-     * Clear all search caches
-     */
-    @CacheEvict(value = {"nameSearches", "phoneSearches", "emailSearches", "addressSearches"}, allEntries = true)
+    @CacheEvict(value = {"globalSearches", "nameSearches", "phoneSearches", "emailSearches", "addressSearches"}, allEntries = true)
     public void clearAllCaches() {
-        System.out.println("🗑️ All search caches cleared!");
+        System.out.println("🗑️ Vidage complet du cache OSINT.");
     }
 
-    /**
-     * Clear specific cache by type
-     */
+    // Ces méthodes sont CRUCIALES pour corriger tes erreurs de compilation
     @CacheEvict(value = "nameSearches", allEntries = true)
     public void clearNameCache() {
-        System.out.println("🗑️ Name search cache cleared!");
+        System.out.println("🗑️ Cache des noms vidé.");
     }
 
     @CacheEvict(value = "phoneSearches", allEntries = true)
     public void clearPhoneCache() {
-        System.out.println("🗑️ Phone search cache cleared!");
+        System.out.println("🗑️ Cache des téléphones vidé.");
     }
 
     @CacheEvict(value = "emailSearches", allEntries = true)
     public void clearEmailCache() {
-        System.out.println("🗑️ Email search cache cleared!");
+        System.out.println("🗑️ Cache des emails vidé.");
     }
 
     @CacheEvict(value = "addressSearches", allEntries = true)
     public void clearAddressCache() {
-        System.out.println("🗑️ Address search cache cleared!");
+        System.out.println("🗑️ Cache des adresses vidé.");
     }
 }
