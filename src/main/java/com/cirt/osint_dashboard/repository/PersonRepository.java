@@ -18,63 +18,59 @@ import java.util.List;
 public interface PersonRepository extends MongoRepository<PersonData, String> {
 
     /* ============================================================
-       1. RECHERCHE GLOBALE (MULTI-CHAMP) - PHASE 2
-       Cherche la valeur dans TOUS les champs principaux en même temps.
-       L'option 'i' rend la recherche insensible à la casse.
+       1. RECHERCHE COMBINÉE (GLOBALE + FILTRE) - SOLUTION FINALE PHASE 2
+       Cette requête permet de chercher un mot-clé ET d'appliquer un filtre
+       dynamique (ex: sexe ou pays) tout en gardant une pagination réelle.
+       ============================================================ */
+    @Query("{ '$and': [ " +
+           "  { '$or': [ " +
+           "    { 'name': { '$regex': ?0, '$options': 'i' } }, " +
+           "    { 'email': { '$regex': ?0, '$options': 'i' } }, " +
+           "    { 'phonenumber': { '$regex': ?0, '$options': 'i' } }, " +
+           "    { 'facebook_id': { '$regex': ?0, '$options': 'i' } }, " +
+           "    { 'nui': { '$regex': ?0, '$options': 'i' } }, " +
+           "    { 'address1': { '$regex': ?0, '$options': 'i' } }, " +
+           "    { 'country': { '$regex': ?0, '$options': 'i' } } " +
+           "  ]}, " +
+           "  { ?1 : { '$regex': ?2, '$options': 'i' } } " +
+           "]}")
+    Page<PersonData> advancedSearch(String query, String filterField, String filterValue, Pageable pageable);
+
+    /* ============================================================
+       2. RECHERCHE GLOBALE SIMPLE
        ============================================================ */
     @Query("{ '$or': [ " +
-       "{ 'name': { '$regex': ?0, '$options': 'i' } }, " +
-       "{ 'email': { '$regex': ?0, '$options': 'i' } }, " +
-       "{ 'phonenumber': { '$regex': ?0, '$options': 'i' } }, " +
-       "{ 'facebook_id': { '$regex': ?0, '$options': 'i' } }, " +
-       "{ 'nui': { '$regex': ?0, '$options': 'i' } }, " +
-       "{ 'occupation': { '$regex': ?0, '$options': 'i' } }, " +
-       "{ 'placeofwork': { '$regex': ?0, '$options': 'i' } }, " +
-       "{ 'address1': { '$regex': ?0, '$options': 'i' } }, " +
-       "{ 'country': { '$regex': ?0, '$options': 'i' } }" +
-       "] }")
-   Page<PersonData> globalSearch(String query, Pageable pageable);
+           "{ 'name': { '$regex': ?0, '$options': 'i' } }, " +
+           "{ 'email': { '$regex': ?0, '$options': 'i' } }, " +
+           "{ 'phonenumber': { '$regex': ?0, '$options': 'i' } }, " +
+           "{ 'facebook_id': { '$regex': ?0, '$options': 'i' } }, " +
+           "{ 'nui': { '$regex': ?0, '$options': 'i' } }, " +
+           "{ 'occupation': { '$regex': ?0, '$options': 'i' } }, " +
+           "{ 'placeofwork': { '$regex': ?0, '$options': 'i' } }, " +
+           "{ 'address1': { '$regex': ?0, '$options': 'i' } }, " +
+           "{ 'country': { '$regex': ?0, '$options': 'i' } }" +
+           "] }")
+    Page<PersonData> globalSearch(String query, Pageable pageable);
 
     /* ============================================================
-       2. RECHERCHES INDEXÉES (SPÉCIFIQUES)
-       Utilisées pour les recherches directes et précises.
+       3. RECHERCHES INDEXÉES ET FILTRES (STABILISATION)
        ============================================================ */
-
-    // Recherche exacte par Téléphone
     List<PersonData> findByPhonenumber(String phonenumber);
-
-    // Recherche exacte par Email
     List<PersonData> findByEmail(String email);
-
-    // Recherche partielle par Adresse
     List<PersonData> findByAddress1ContainingIgnoreCase(String address);
-
-    /* ============================================================
-       3. FILTRES OSINT (STABILISATION PHASE 1)
-       Permet d'affiner les résultats sur le Dashboard.
-       ============================================================ */
-    
-    // Filtre par Pays (Insensible à la casse)
     List<PersonData> findByCountryIgnoreCase(String country);
-
-    // Filtre par Sexe (M/F)
     List<PersonData> findBySexIgnoreCase(String sex);
-
-    // Filtre par Occupation (Recherche partielle insensible à la casse)
     List<PersonData> findByOccupationContainingIgnoreCase(String occupation);
 
     /* ============================================================
-       4. FULL-TEXT SEARCH (MONGODB NATIVE)
-       Nécessite : db.leakeddata.createIndex({ "name": "text" })
+       4. FULL-TEXT SEARCH
        ============================================================ */
     @Query("{ $text: { $search: ?0 } }")
     List<PersonData> searchByNameText(String value);
 
     /* ============================================================
-       5. UTILITAIRES DE NAVIGATION
+       5. UTILITAIRES
        ============================================================ */
-    
-    // Récupération limitée pour éviter de saturer le Frontend
     default List<PersonData> findLimited(int limit) {
         return findAll(PageRequest.of(0, limit)).getContent();
     }

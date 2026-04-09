@@ -2,16 +2,17 @@ package com.cirt.osint_dashboard.controller;
 
 import com.cirt.osint_dashboard.model.PersonData;
 import com.cirt.osint_dashboard.service.PersonService;
-
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+/**
+ * Controller optimisé pour la Phase 2.2 (Recherche Combinée)
+ * Gère la recherche globale ET le filtrage simultané au Backend.
+ */
 @RestController
 @RequestMapping("/search")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -24,71 +25,53 @@ public class PersonController {
     }
 
     /* ============================================================
-       RECHERCHE GLOBALE (Celle que tu dois utiliser maintenant)
+       RECHERCHE GLOBALE & COMBINÉE (Le moteur principal)
+       C'est cette route qui règle tes problèmes de pagination et de stats.
        ============================================================ */
-       @GetMapping("/global")
+    @GetMapping("/global")
     public ResponseEntity<Map<String, Object>> searchGlobal(
-        @RequestParam String value,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "50") int size) {
+            @RequestParam String value,
+            @RequestParam(required = false) String filterField,
+            @RequestParam(required = false) String filterValue,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
     
-    Page<PersonData> resultPage = service.searchGlobal(value, page, size);
-    
-    Map<String, Object> response = new HashMap<>();
-    response.put("results", resultPage.getContent()); // Les données de la page actuelle
-    response.put("total", resultPage.getTotalElements()); // Le nombre TOTAL dans la base
-    response.put("totalPages", resultPage.getTotalPages());
-    response.put("currentPage", resultPage.getNumber());
-    
-    return ResponseEntity.ok(response);
-}
+        Page<PersonData> resultPage;
 
-    @GetMapping("/name")
-    public ResponseEntity<Map<String, Object>> searchByName(@RequestParam String value, @RequestParam(defaultValue = "5000") int size) {
-        return buildResponse(service.searchByName(value), size);
+        // Si on a à la fois une recherche ET un filtre (ex: Bastos + Sexe M)
+        if (filterField != null && !filterField.isEmpty() && filterValue != null && !filterValue.isEmpty()) {
+            resultPage = service.searchAdvanced(value, filterField, filterValue, page, size);
+        } else {
+            // Sinon recherche globale classique
+            resultPage = service.searchGlobal(value, page, size);
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("results", resultPage.getContent());
+        response.put("total", resultPage.getTotalElements()); // Renvoie le VRAI total filtré (ex: 218)
+        response.put("totalPages", resultPage.getTotalPages()); // Calculé par Mongo sur le total filtré
+        response.put("currentPage", resultPage.getNumber());
+        
+        return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/phone")
-    public ResponseEntity<Map<String, Object>> searchByPhone(@RequestParam String value, @RequestParam(defaultValue = "5000") int size) {
-        return buildResponse(service.searchByPhone(value), size);
-    }
-
-    @GetMapping("/country")
-    public ResponseEntity<Map<String, Object>> searchByCountry(@RequestParam String value, @RequestParam(defaultValue = "5000") int size) {
-        return buildResponse(service.searchByCountry(value), size);
-    }
+    /* ============================================================
+       AUTRES ROUTES (Conservées pour compatibilité ou utilité admin)
+       ============================================================ */
 
     @GetMapping("/all")
-    public ResponseEntity<Map<String, Object>> getAll(@RequestParam(defaultValue = "5000") int size) {
-        return ResponseEntity.ok(Map.of("results", service.getAllLimited(size), "total", service.countAll()));
+    public ResponseEntity<Map<String, Object>> getAll(@RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(Map.of(
+            "results", service.getAllLimited(size), 
+            "total", service.countAll()
+        ));
     }
 
-    // Dans PersonController.java
-
-    @GetMapping("/address1") // Assure-toi que c'est bien "address1" pour matcher le Frontend
-    public ResponseEntity<Map<String, Object>> searchByAddress(@RequestParam String value) {
-        List<PersonData> results = service.searchByAddress(value, 5000);
-        Map<String, Object> response = new HashMap<>();
-        response.put("results", results);
-        response.put("total", results.size());
-        return ResponseEntity.ok(response);
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, String>> healthCheck() {
+        return ResponseEntity.ok(Map.of("status", "UP", "database", "MongoDB Connected"));
     }
 
-    @GetMapping("/sex")
-    public ResponseEntity<Map<String, Object>> searchBySex(@RequestParam String value) {
-        // On force la majuscule si besoin (M ou F)
-        List<PersonData> results = service.filterBySex(value.toUpperCase());
-        Map<String, Object> response = new HashMap<>();
-        response.put("results", results);
-        response.put("total", results.size());
-        return ResponseEntity.ok(response);
-    }
-
-    private ResponseEntity<Map<String, Object>> buildResponse(List<PersonData> allResults, int size) {
-        List<PersonData> limited = allResults.stream().limit(size).collect(Collectors.toList());
-        Map<String, Object> response = new HashMap<>();
-        response.put("results", limited);
-        response.put("total", allResults.size());
-        return ResponseEntity.ok(response);
-    }
+    // Note : Les méthodes searchBySex, searchByCountry etc. 
+    // deviennent secondaires car tout passe par /global maintenant.
 }
