@@ -9,23 +9,20 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 public class PersonDocument {
     @Id
     private String id;
-
     @Field(type = FieldType.Text)
     private String name;
-
-    @Field(type = FieldType.Text) // Changé en Text pour chercher "partiellement" dedans
+    @Field(type = FieldType.Text)
     private String email;
-
     @Field(type = FieldType.Text)
     private String phonenumber;
-
     @Field(type = FieldType.Text)
     private String address1;
-
     @Field(type = FieldType.Text)
     private String occupation;
+    @Field(type = FieldType.Text)
+    private String country;
 
-    // Getters et Setters
+    // Getters et Setters pour TOUS les champs (Vérifie bien qu'ils y sont tous)
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getName() { return name; }
@@ -38,4 +35,6 @@ public class PersonDocument {
     public void setAddress1(String address1) { this.address1 = address1; }
     public String getOccupation() { return occupation; }
     public void setOccupation(String occupation) { this.occupation = occupation; }
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
 }

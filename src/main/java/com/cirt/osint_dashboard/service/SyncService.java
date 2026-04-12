@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 /**
  * Service de synchronisation massive MongoDB -> Elasticsearch.
- * Optimisé pour le traitement par lots (Batch Processing) du CIRT.
+ * Optimisé pour le traitement par lots (Batch Processing) pour le CIRT - ANTIC.
  */
 @Service
 public class SyncService {
@@ -41,13 +41,14 @@ public class SyncService {
                     
                     List<PersonDocument> docs = page.getContent().stream().map(p -> {
                         PersonDocument d = new PersonDocument();
-                        // Copie rigoureuse de tous les champs pour la recherche multichamp
+                        // Mapping complet de tous les champs vers Elasticsearch
                         d.setId(p.getId());
                         d.setName(p.getName());
                         d.setEmail(p.getEmail());
                         d.setPhonenumber(p.getPhonenumber());
-                        d.setAddress1(p.getAddress1());     // Crucial pour "Bastos"
-                        d.setOccupation(p.getOccupation()); // Optionnel mais utile
+                        d.setAddress1(p.getAddress1());
+                        d.setOccupation(p.getOccupation());
+                        d.setCountry(p.getCountry()); // Inclus pour corriger l'erreur "frence"
                         return d;
                     }).collect(Collectors.toList());
 
@@ -61,7 +62,6 @@ public class SyncService {
                     }
                 } catch (Exception e) {
                     System.err.println("⚠️ Erreur lors du lot " + i + " : " + e.getMessage());
-                    // On continue le lot suivant malgré l'erreur
                 }
             }
             System.out.println("✅ [CIRT-SYNC] Indexation terminée avec succès !");

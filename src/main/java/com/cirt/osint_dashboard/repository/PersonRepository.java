@@ -1,6 +1,7 @@
 package com.cirt.osint_dashboard.repository;
 
 import com.cirt.osint_dashboard.model.PersonData;
+import org.bson.types.ObjectId; // 🚨 CRITIQUE : Import nécessaire pour la conversion
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
@@ -12,7 +13,8 @@ import java.util.List;
 
 /**
  * Repository pour l'accès aux données de fuites (leaks) dans MongoDB.
- * Optimisé par Tchuente Kenmegne Joel Parfait pour le CIRT - ANTIC.
+ * Optimisé pour le CIRT - ANTIC.
+ * Gère le repli Regex et la récupération par IDs après analyse Elasticsearch.
  */
 @Repository
 public interface PersonRepository extends MongoRepository<PersonData, String> {
@@ -35,7 +37,7 @@ public interface PersonRepository extends MongoRepository<PersonData, String> {
     Page<PersonData> advancedSearch(String query, String filterField, String filterValue, Pageable pageable);
 
     /* ============================================================
-       2. RECHERCHE GLOBALE SIMPLE (REGEX)
+       2. RECHERCHE GLOBALE SIMPLE (REGEX) - MOTEUR DE SECOURS
        ============================================================ */
     @Query("{ '$or': [ " +
            "{ 'name': { '$regex': ?0, '$options': 'i' } }, " +
@@ -52,12 +54,13 @@ public interface PersonRepository extends MongoRepository<PersonData, String> {
 
     /* ============================================================
        3. HYBRIDATION ELASTICSEARCH -> MONGODB
-       Récupère les documents par IDs (envoyés par le moteur de recherche floue).
+       Utilise désormais ObjectId pour matcher le format natif de Mongo.
+       C'est le pont final entre le Fuzzy Search et la donnée brute.
        ============================================================ */
-    Page<PersonData> findByIdIn(List<String> ids, Pageable pageable);
+    Page<PersonData> findAllByIdIn(List<ObjectId> ids, Pageable pageable);
 
     /* ============================================================
-       4. RECHERCHES INDEXÉES ET FILTRES (STABILISATION)
+       4. RECHERCHES INDEXÉES ET FILTRES DE STABILISATION
        ============================================================ */
     List<PersonData> findByPhonenumber(String phonenumber);
     List<PersonData> findByEmail(String email);
@@ -73,7 +76,7 @@ public interface PersonRepository extends MongoRepository<PersonData, String> {
     List<PersonData> searchByNameText(String value);
 
     /* ============================================================
-       6. UTILITAIRES
+       6. UTILITAIRES DE LIMITATION
        ============================================================ */
     default List<PersonData> findLimited(int limit) {
         return findAll(PageRequest.of(0, limit)).getContent();
