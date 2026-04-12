@@ -3,7 +3,13 @@ package com.cirt.osint_dashboard.service;
 import com.cirt.osint_dashboard.model.PersonData;
 import com.cirt.osint_dashboard.model.PersonDocument;
 import com.cirt.osint_dashboard.repository.PersonRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.http.util.EntityUtils;
 import org.bson.types.ObjectId;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestClient;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
@@ -12,37 +18,73 @@ import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Service OSINT Hybride (MongoDB + Elasticsearch) - Version Haute Performance.
- * Corrigé pour supprimer la limitation arbitraire des 100 résultats.
+ * Service OSINT Hybride - Version Finale Certifiée (Bas Niveau).
+ * Optimisé avec filtrage des doublons (.distinct).
  */
 @Service
 public class PersonService {
 
     private final PersonRepository mongoRepository;
     private final ElasticsearchOperations elasticsearchOperations;
+    private final RestClient restClient; 
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public PersonService(PersonRepository mongoRepository, ElasticsearchOperations elasticsearchOperations) {
+    public PersonService(PersonRepository mongoRepository, 
+                         ElasticsearchOperations elasticsearchOperations, 
+                         RestClient restClient) {
         this.mongoRepository = mongoRepository;
         this.elasticsearchOperations = elasticsearchOperations;
+        this.restClient = restClient;
     }
 
     /* ============================================================
-       1. RECHERCHE GLOBALE HYBRIDE (PUISSANCE MAXIMALE)
+       1. AUTO-COMPLÉTION (MÉTHODE BAS NIVEAU + DISTINCT)
+       ============================================================ */
+    public List<String> getSuggestions(String prefix) {
+        List<String> rawSuggestions = new ArrayList<>();
+        try {
+            Request request = new Request("POST", "/person_index/_search");
+            // On demande un peu plus de résultats (ex: 20) pour être sûr d'avoir 10 valeurs uniques après le distinct
+            String body = "{\"suggest\":{\"osint-suggest\":{\"prefix\":\"" + prefix + "\",\"completion\":{\"field\":\"suggest\",\"size\":20}}}}";
+            request.setJsonEntity(body);
+
+            Response response = restClient.performRequest(request);
+            String responseBody = EntityUtils.toString(response.getEntity());
+
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode suggestNode = root.path("suggest").path("osint-suggest");
+
+            if (suggestNode.isArray() && suggestNode.size() > 0) {
+                JsonNode options = suggestNode.get(0).path("options");
+                if (options.isArray()) {
+                    for (JsonNode option : options) {
+                        rawSuggestions.add(option.path("text").asText());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Erreur Suggestion Bas Niveau : " + e.getMessage());
+        }
+
+        // --- FILTRAGE DES DOUBLONS ---
+        return rawSuggestions.stream()
+                .distinct() // Supprime les doublons
+                .limit(10)  // On garde les 10 meilleures suggestions uniques
+                .collect(Collectors.toList());
+    }
+
+    /* ============================================================
+       2. RECHERCHE GLOBALE HYBRIDE
        ============================================================ */
     @Cacheable(value = "globalSearches", key = "{#query, #page, #size}", unless = "#result == null")
     public Page<PersonData> searchGlobal(String query, int page, int size) {
-        System.out.println("\n--- 🕵️ ANALYSE MASSIVE CIRT ---");
-        System.out.println("🔎 Requête : [" + query + "]");
-        
         try {
-            // Utilisation d'une limite étendue pour ne pas brider le moteur
-            // On demande 10 000 IDs pour permettre une pagination fluide sur MongoDB
             NativeQuery nativeQuery = NativeQuery.builder()
                 .withQuery(q -> q
                     .multiMatch(m -> m
@@ -57,59 +99,37 @@ public class PersonService {
             SearchHits<PersonDocument> hits = elasticsearchOperations.search(nativeQuery, PersonDocument.class);
 
             if (hits.hasSearchHits()) {
-                System.out.println("✅ Elastic a trouvé : " + hits.getTotalHits() + " hits.");
-                
                 List<ObjectId> objectIds = hits.getSearchHits().stream()
                     .map(hit -> new ObjectId(hit.getContent().getId()))
                     .collect(Collectors.toList());
-                
-                System.out.println("🎯 Volume d'IDs traités : " + objectIds.size());
-
-                // MongoDB s'occupe de la pagination (page/size) sur ces IDs
                 return mongoRepository.findAllByIdIn(objectIds, PageRequest.of(page, size));
-            } else {
-                System.out.println("ℹ️ Elastic : Aucun résultat pour cette recherche.");
             }
         } catch (Exception e) {
             System.err.println("❌ ÉCHEC MOTEUR ELASTIC : " + e.getMessage());
         }
 
-        // Fallback vers MongoDB Regex (Sécurité)
-        System.out.println("⚠️ Utilisation du Fallback Regex MongoDB...");
         String safeQuery = query.replaceAll("([\\\\+\\\\*\\\\?\\\\^\\\\$\\\\(\\\\)\\\\[\\\\]\\\\{\\}\\\\.\\\\|])", "\\\\$1");
         return mongoRepository.globalSearch(safeQuery, PageRequest.of(page, size));
     }
 
     /* ============================================================
-       2. RECHERCHE AVANCÉE & FILTRAGE
+       3. RECHERCHE AVANCÉE
        ============================================================ */
     @Cacheable(value = "advancedSearches", key = "{#query, #filterField, #filterValue, #page, #size}", unless = "#result == null")
     public Page<PersonData> searchAdvanced(String query, String filterField, String filterValue, int page, int size) {
-        String safeQuery = query.replaceAll("([\\\\+\\\\*\\\\?\\\\^\\\\$\\\\(\\\\)\\\\[\\\\]\\\\{\\}\\\\.\\\\|])", "\\\\$1");
+        String safeQuery = (query != null) ? query.replaceAll("([\\\\+\\\\*\\\\?\\\\^\\\\$\\\\(\\\\)\\\\[\\\\]\\\\{\\}\\\\.\\\\|])", "\\\\$1") : "";
         String safeFilterValue = (filterValue != null) ? filterValue.replaceAll("([\\\\+\\\\*\\\\?\\\\^\\\\$\\\\(\\\\)\\\\[\\\\]\\\\{\\}\\\\.\\\\|])", "\\\\$1") : "";
         return mongoRepository.advancedSearch(safeQuery, filterField, safeFilterValue, PageRequest.of(page, size));
     }
 
     /* ============================================================
-       3. RECHERCHES UNITAIRES ET FILTRES
+       4. UTILITAIRES
        ============================================================ */
     public List<PersonData> searchByName(String name) { return mongoRepository.searchByNameText(name); }
     public List<PersonData> searchByPhone(String phone) { return mongoRepository.findByPhonenumber(phone); }
-    public List<PersonData> searchByAddress(String address, int limit) {
-        return mongoRepository.findByAddress1ContainingIgnoreCase(address).stream().limit(limit).toList();
-    }
-    public List<PersonData> filterBySex(String sex) {
-        String formattedSex = (sex != null) ? sex.trim().toUpperCase() : "";
-        if (formattedSex.startsWith("M")) formattedSex = "M";
-        if (formattedSex.startsWith("F")) formattedSex = "F";
-        return mongoRepository.findBySexIgnoreCase(formattedSex);
-    }
     public List<PersonData> getAllLimited(int limit) { return mongoRepository.findLimited(limit); }
     public long countAll() { return mongoRepository.count(); }
 
-    /* ============================================================
-       4. GESTION DU CACHE
-       ============================================================ */
     @CacheEvict(value = {"globalSearches", "advancedSearches", "nameSearches", "phoneSearches", "emailSearches", "addressSearches", "sexSearches"}, allEntries = true)
     public void clearAllCaches() { System.out.println("🗑️ Tous les caches OSINT ont été vidés."); }
 
