@@ -10,13 +10,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Controller OSINT pour le CIRT - ANTIC.
- * Gère la recherche globale, les filtres et l'autocomplétion temps réel.
- */
 @RestController
-@RequestMapping("/search") // L'URL de base commence par /search
-@CrossOrigin(origins = "http://localhost:3000")
+@RequestMapping("/search")
+@CrossOrigin(origins = "http://localhost:3000") // Autorise React
 public class PersonController {
 
     private final PersonService service;
@@ -25,20 +21,15 @@ public class PersonController {
         this.service = service;
     }
 
-    /* ============================================================
-       1. AUTO-COMPLÉTION (Nouveau : Indispensable pour ton test)
-       Accessible via : GET http://localhost:8080/search/suggest?value=ffr
-       ============================================================ */
     @GetMapping("/suggest")
+    @CrossOrigin(origins = "http://localhost:3000") // Double sécurité CORS
     public ResponseEntity<List<String>> suggest(@RequestParam String value) {
-        // Appelle la méthode getSuggestions que nous avons codée dans PersonService
+        System.out.println("🔍 [CIRT-API] Demande de suggestion pour: " + value);
         List<String> suggestions = service.getSuggestions(value);
+        System.out.println("✅ [CIRT-API] Suggestions trouvées: " + suggestions.size());
         return ResponseEntity.ok(suggestions);
     }
 
-    /* ============================================================
-       2. RECHERCHE GLOBALE & COMBINÉE
-       ============================================================ */
     @GetMapping("/global")
     public ResponseEntity<Map<String, Object>> searchGlobal(
             @RequestParam String value,
@@ -48,7 +39,6 @@ public class PersonController {
             @RequestParam(defaultValue = "50") int size) {
     
         Page<PersonData> resultPage;
-
         if (filterField != null && !filterField.isEmpty() && filterValue != null && !filterValue.isEmpty()) {
             resultPage = service.searchAdvanced(value, filterField, filterValue, page, size);
         } else {
@@ -64,10 +54,6 @@ public class PersonController {
         return ResponseEntity.ok(response);
     }
 
-    /* ============================================================
-       3. ROUTES ADMIN ET SANTÉ
-       ============================================================ */
-
     @GetMapping("/all")
     public ResponseEntity<Map<String, Object>> getAll(@RequestParam(defaultValue = "50") int size) {
         return ResponseEntity.ok(Map.of(
@@ -78,6 +64,6 @@ public class PersonController {
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> healthCheck() {
-        return ResponseEntity.ok(Map.of("status", "UP", "database", "MongoDB + Elasticsearch Connected"));
+        return ResponseEntity.ok(Map.of("status", "UP", "database", "OSINT Hybrid Engine Active"));
     }
 }

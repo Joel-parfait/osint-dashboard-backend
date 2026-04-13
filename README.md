@@ -1,193 +1,163 @@
-# 🛡️ OSINT Dashboard — Backend Engine (CIRT Edition)
+# 🛡️ Manuel Technique Ultime — OSINT Dashboard Backend Engine (CIRT Edition)
 
-Backend API and search engine for the OSINT Intelligence Platform used for analyzing leaked data and supporting incident response operations.
-
-This backend service provides secure authentication, high-performance search, caching, and scalable data ingestion capabilities designed for operational environments such as SOC / CIRT.
-
----
-
-# 👨‍💻 Author
-
-**Tchuente Kenmegne Joel Parfait**
-Backend Developer | OSINT Analyst
-Centre de Réponse aux Incidents Informatiques (CIRT) — ANTIC
+**Organisation :** Centre de Réponse aux Incidents Informatiques (CIRT) — ANTIC
+**Projet :** OSINT Intelligence Platform — Backend Engine
+**Auteur :** Tchuente Kenmegne Joel Parfait
+**Fonction :** Backend Developer | OSINT Analyst
+**Version :** Production-Ready Documentation v1.0
 
 ---
 
-# 📌 Overview
+# 1. Objectif du Document
 
-The **OSINT Backend Engine** is a Spring Boot-based API responsible for:
+Ce document constitue la documentation technique complète du moteur backend du **OSINT Dashboard**, incluant :
 
-* Processing search requests
-* Managing authentication
-* Handling leaked data queries
-* Managing caching via Redis
-* Providing REST API endpoints
-* Supporting large-scale data ingestion
-* Ensuring system stability and performance
+* Installation et configuration du système
+* Architecture technique
+* Déploiement sur un poste ou serveur
+* Configuration de MongoDB, Redis et Elasticsearch
+* Synchronisation des données
+* Autocomplétion temps réel
+* Sécurité et performance
+* Procédures d'exploitation
+* Troubleshooting
+* Bonnes pratiques de production
 
-This backend has been **analyzed, stabilized, and optimized** following deployment issues discovered during system initialization.
-
----
-
-# 🚀 Key Improvements & Critical Fixes
-
-The following production-critical fixes were implemented to ensure system reliability and operational readiness.
+Ce manuel est conçu pour permettre à **tout ingénieur système ou développeur** de déployer et maintenir la plateforme sans dépendance à l'auteur original.
 
 ---
 
-## 1. Security & CORS Configuration Fix
+# 2. Présentation du Système
 
-Problem:
+Le **OSINT Backend Engine** est une API basée sur **Spring Boot** permettant :
 
-```text
-401 Unauthorized errors between frontend and backend
-```
+* la recherche rapide dans des bases de données volumineuses
+* l'analyse de données issues de fuites (leaks)
+* la gestion de l'authentification
+* la mise en cache des requêtes
+* l'indexation haute performance
+* l'autocomplétion en temps réel
+* l'ingestion massive de données
+* la stabilité opérationnelle du système
 
-Root Cause:
+Cette plateforme est conçue pour un environnement opérationnel de type :
 
-```text
-Default Spring Security configuration blocking cross-origin requests
-```
-
-Solution:
-
-Custom Security configuration implemented.
-
-File:
-
-```text
-SecurityConfig.java
-```
-
-Result:
-
-```text
-Frontend (port 3000) successfully communicates with backend (port 8080)
-```
+* CIRT
+* SOC
+* CERT
+* Investigation numérique
+* Analyse OSINT
 
 ---
 
-## 2. MongoDB Full-Text Index Activation
+# 3. Architecture du Système
 
-Problem:
-
-```text
-Search by name causing HTTP 500 errors
-```
-
-Root Cause:
+## Diagramme d’Architecture Professionnel
 
 ```text
-Missing MongoDB text index
-```
+                        UTILISATEURS / ANALYSTES
+                                  │
+                                  │ HTTPS
+                                  ▼
+                          ┌───────────────────┐
+                          │     Frontend      │
+                          │      React        │
+                          └───────────────────┘
+                                  │
+                                  │ REST API
+                                  ▼
+                      ┌─────────────────────────┐
+                      │      Load Balancer      │
+                      └─────────────────────────┘
+                                  │
+                                  ▼
+                      ┌─────────────────────────┐
+                      │      API Gateway        │
+                      │  (Security / Routing)   │
+                      └─────────────────────────┘
+                                  │
+                                  ▼
+                      ┌─────────────────────────┐
+                      │     Spring Boot API     │
+                      │   Authentication Layer  │
+                      └─────────────────────────┘
+                         │           │
+                         │           │
+                         ▼           ▼
+            ┌─────────────────┐   ┌─────────────────┐
+            │   Redis Cache   │   │   Logging System │
+            │  Session / Cache│   │  Audit / Errors  │
+            └─────────────────┘   └─────────────────┘
+                         │
+                         ▼
+                ┌─────────────────────┐
+                │    Elasticsearch    │
+                │   Search Engine     │
+                └─────────────────────┘
+                         │
+                         ▼
+                ┌─────────────────────┐
+                │       MongoDB       │
+                │   Source of Truth   │
+                └─────────────────────┘
+                         │
+                         ▼
+                ┌─────────────────────┐
+                │    Backup Storage   │
+                │   Snapshot System   │
+                └─────────────────────┘
 
-Solution:
+Monitoring Layer:
 
-Manual creation of MongoDB text index.
-
-Command:
-
-```javascript
-db.leakeddata.createIndex({ "name": "text" })
-```
-
-Result:
-
-```text
-Stable full-text search functionality
-```
-
----
-
-## 3. Redis Cache Stability
-
-Problem:
-
-```text
-Backend failure when Redis service stopped
-```
-
-Root Cause:
-
-```text
-Hard dependency on Redis cache
-```
-
-Solution:
-
-Implemented resilience logic in service layer.
-
-Result:
-
-```text
-Backend continues operating even if Redis is unavailable
+        Prometheus  ─────────► Metrics Collection
+        Grafana     ─────────► Dashboards & Alerts
 ```
 
 ---
 
-## 4. Data Mapping Correction
+Architecture actuelle :
 
-Problem:
-
-```text
-Null values in search results
-```
-
-Root Cause:
-
-```text
-Mismatch between MongoDB fields and Java model
-```
-
-Example:
-
-```json
-firstname
-lastname
-```
-
-Corrected To:
-
-```json
-name
-```
-
-Result:
-
-```text
-Consistent and reliable data mapping
-```
-
----
-
-# 🧱 System Architecture
-
-```text
 Frontend (React)
-        ↓
+↓
 Spring Boot API
-        ↓
+↓
 Redis Cache
-        ↓
+↓
 MongoDB Database
-```
 
-Future architecture:
+Architecture optimisée avec moteur de recherche :
 
-```text
 Frontend
-        ↓
+↓
 Spring Boot API
-        ↓
+↓
+Redis Cache
+↓
 Elasticsearch
-        ↓
+↓
 MongoDB
-```
+
+Architecture cible (production avancée) :
+
+Load Balancer
+↓
+API Gateway
+↓
+Spring Boot API
+↓
+Redis Cache
+↓
+Elasticsearch Cluster
+↓
+MongoDB Cluster
+↓
+Backup Storage
+↓
+Monitoring System
 
 ---
 
-# ⚙️ Technology Stack
+# 4. Technologies Utilisées
 
 ## Backend
 
@@ -195,436 +165,498 @@ MongoDB
 * Spring Boot
 * Spring Security
 * REST API
+* Maven
 
-## Database
+## Base de données
 
 * MongoDB
+
+## Moteur de recherche
+
+* Elasticsearch
 
 ## Cache
 
 * Redis
 
-## Tools
+## Outils
 
-* Maven
+* Docker
 * Postman
 * Git
 * VS Code
 
 ---
 
-# 📋 Prerequisites
-
-Ensure the following services are installed.
-
----
+# 5. Prérequis Système
 
 ## Java
 
-```bash
 java -version
-```
 
-Required:
+Requis :
 
-```text
-Java 17+
-```
+Java 17 ou supérieur
 
 ---
 
 ## Maven
 
-```bash
 mvn -version
-```
 
-Required:
+Requis :
 
-```text
-Maven 3.6+
-```
+Maven 3.6 ou supérieur
 
 ---
 
 ## MongoDB
 
-```bash
 mongod --version
-```
 
-Required:
+Requis :
 
-```text
-MongoDB 5.0+
-```
+MongoDB 5.0 ou supérieur
 
 ---
 
 ## Redis
 
-```bash
 redis-server --version
-```
 
-Recommended:
+Recommandé :
 
-```text
-Redis 6+
-```
+Redis 6 ou supérieur
 
 ---
 
-# 🔧 Database Setup (MongoDB)
+## Elasticsearch
+
+curl [http://localhost:9200](http://localhost:9200)
+
+Recommandé :
+
+Elasticsearch 8.x
 
 ---
 
-## Start MongoDB
+# 6. Installation des Services
 
-Linux (Kali):
+## Démarrage MongoDB
 
-```bash
 sudo systemctl start mongodb
 sudo systemctl enable mongodb
-```
 
 ---
 
-## Create Database User
+## Démarrage Redis
 
-Open MongoDB shell:
-
-```bash
-mongosh
-```
-
-Run:
-
-```javascript
-use admin
-
-db.createUser({
-  user: "admin",
-  pwd: "admin123",
-  roles: [
-    {
-      role: "readWrite",
-      db: "leaks_db"
-    }
-  ]
-})
-```
+sudo systemctl start redis
+sudo systemctl enable redis
 
 ---
 
-## Import Data
+# 7. Configuration Elasticsearch
 
-Supports large datasets.
+Fichier :
 
-```bash
-mongoimport \
---db leaks_db \
---collection leakeddata \
---file leaks_data.json \
---type json
-```
+/etc/elasticsearch/elasticsearch.yml
 
----
+Configuration recommandée :
 
-## Create Critical Index
+network.host: 0.0.0.0
+http.port: 9200
 
-Mandatory for search stability.
-
-```javascript
-use leaks_db
-
-db.leakeddata.createIndex({
-  name: "text"
-})
-```
+discovery.type: single-node
 
 ---
 
-# ⚙️ Backend Configuration
+## Allocation mémoire JVM
 
-Edit:
+Fichier :
 
-```text
+/etc/elasticsearch/jvm.options
+
+Configuration recommandée :
+
+-Xms4g
+-Xmx4g
+
+Cette configuration garantit :
+
+* performance stable
+* autocomplétion rapide
+* indexation massive
+
+---
+
+## Vérification du cluster
+
+curl -X GET "[http://localhost:9200/_cluster/health?pretty](http://localhost:9200/_cluster/health?pretty)"
+
+Résultat attendu :
+
+status: green ou yellow
+
+---
+
+# 8. Création de l'Index Elasticsearch
+
+Commande :
+
+curl -X PUT "[http://localhost:9200/person_index](http://localhost:9200/person_index)" 
+-H "Content-Type: application/json" 
+-d '
+{
+"mappings": {
+"properties": {
+
+```
+  "name": {
+    "type": "text"
+  },
+
+  "email": {
+    "type": "text"
+  },
+
+  "phonenumber": {
+    "type": "text"
+  },
+
+  "occupation": {
+    "type": "text"
+  },
+
+  "country": {
+    "type": "text"
+  },
+
+  "suggest": {
+    "type": "completion"
+  }
+
+}
+```
+
+}
+}
+'
+
+---
+
+# 9. Fonctionnement de l'Autocomplétion
+
+Le système utilise :
+
+Completion Suggester
+
+Cette technologie repose sur :
+
+FST — Finite State Transducer
+
+Avantages :
+
+* réponse en quelques millisecondes
+* faible consommation CPU
+* performance stable
+
+---
+
+# 10. Pipeline d'Ingestion des Données
+
+Étape 1 : Import dans MongoDB
+
+mongoimport 
+--db osint_db 
+--collection persons 
+--file base_externe.json 
+--jsonArray
+
+---
+
+Étape 2 : Synchronisation vers Elasticsearch
+
+Le service :
+
+SyncService
+
+assure la projection des données depuis MongoDB vers Elasticsearch.
+
+---
+
+# 11. Synchronisation Massive (Batch Processing)
+
+Implémentation recommandée :
+
+Page<PersonData> page;
+
+int pageNumber = 0;
+
+do {
+
+```
+page = repository.findAll(
+    PageRequest.of(pageNumber, 1000)
+);
+
+page.forEach(syncService::syncExternalData);
+
+pageNumber++;
+```
+
+} while (page.hasNext());
+
+---
+
+# 12. Configuration Backend
+
+Fichier :
+
 src/main/resources/application.properties
-```
 
 ---
 
-## MongoDB Connection
+## MongoDB
 
-```properties
-spring.data.mongodb.uri=mongodb://admin:admin123@127.0.0.1:27017/leaks_db?authSource=admin
-```
+spring.data.mongodb.uri=mongodb://127.0.0.1:27017/osint_db
 
 ---
 
-## Redis Configuration
+## Elasticsearch
 
-```properties
+spring.elasticsearch.uris=[http://127.0.0.1:9200](http://127.0.0.1:9200)
+
+---
+
+## Redis
+
 spring.data.redis.host=localhost
 spring.data.redis.port=6379
-```
 
 ---
 
-# 🚀 Run Backend Server
+## Port serveur
 
-Build project:
+server.port=8080
 
-```bash
-mvn clean install -DskipTests
-```
+---
 
-Start server:
+# 13. Lancement du Backend
 
-```bash
+Compilation :
+
+mvn clean install
+
+---
+
+Démarrage :
+
 mvn spring-boot:run
-```
-
-Backend URL:
-
-```text
-http://localhost:8080
-```
 
 ---
 
-# 📊 API Endpoints
+URL API :
+
+[http://localhost:8080](http://localhost:8080)
 
 ---
+
+# 14. Endpoints API
 
 ## Authentication
 
-```text
 POST /auth/login
+
 POST /auth/logout
+
 POST /auth/change-password
-```
 
 ---
 
 ## Search
 
-```text
 GET /search/name
+
 GET /search/email
+
 GET /search/phone
+
 GET /search/address
-```
-
-Example:
-
-```bash
-curl "http://localhost:8080/search/name?value=john"
-```
 
 ---
 
-## Cache Management
+## Autocomplete
 
-```text
-GET /api/cache/stats
-GET /api/cache/health
-POST /api/cache/clear
-```
+GET /search/suggest?value=...
 
 ---
 
 ## Health Check
 
-```text
 GET /search/health
-```
 
 ---
 
-# 🧪 Health Checks
+## Cache
+
+GET /api/cache/stats
+
+POST /api/cache/clear
 
 ---
 
-## Check API
+# 15. Sécurité
 
-```bash
-curl http://localhost:8080/search/health
-```
+Bonnes pratiques obligatoires :
 
----
-
-## Check Redis
-
-```bash
-redis-cli ping
-```
-
-Expected:
-
-```text
-PONG
-```
+* authentification utilisateur
+* validation des requêtes
+* firewall actif
+* accès réseau restreint
+* journalisation des actions
 
 ---
 
-## Check Database
+## Ports à protéger
 
-```javascript
-db.leakeddata.countDocuments()
-```
-
----
-
-# 📁 Project Structure
-
-```text
-backend/
-│
-├── src/
-│   ├── controller/
-│   ├── service/
-│   ├── repository/
-│   ├── model/
-│   ├── config/
-│   └── security/
-│
-├── resources/
-│   └── application.properties
-│
-├── pom.xml
-└── README_BACKEND.md
-```
+27017
+9200
+8080
 
 ---
 
-# 🔐 Security Notes
+## Règle Firewall recommandée
 
-Never expose MongoDB publicly.
+Autoriser uniquement :
 
-Do NOT open:
-
-```text
-Port 27017
-```
-
-Without:
-
-* authentication
-* firewall rules
-* TLS encryption
+192.168.0.0/16
 
 ---
 
-# 🐛 Troubleshooting
+# 16. Monitoring et Logs
+
+Logs recommandés :
+
+logs/
+
+app.log
+
+error.log
+
+audit.log
 
 ---
 
-## Error 401 Unauthorized
+Monitoring recommandé :
 
-Check:
+Prometheus
 
-```text
+Grafana
+
+Elastic Monitoring
+
+---
+
+# 17. Sauvegarde des Données
+
+Méthode recommandée :
+
+Elasticsearch Snapshot
+
+Fréquence :
+
+Daily Backup
+
+---
+
+Commande exemple :
+
+PUT _snapshot/backup_repository/snapshot_01
+
+---
+
+# 18. Performance
+
+Caractéristiques actuelles :
+
+* recherche rapide
+* autocomplétion temps réel
+* cache Redis
+* indexation Elasticsearch
+* synchronisation automatique
+
+---
+
+Capacité :
+
+Testé avec plus de 2 000 000 enregistrements
+
+Architecture conçue pour plusieurs millions d'enregistrements
+
+---
+
+# 19. Troubleshooting
+
+## Erreur 401
+
+Vérifier :
+
 SecurityConfig.java
-```
-
-Ensure:
-
-```text
-requestMatchers("/search/**").permitAll()
-```
 
 ---
 
-## Error 500 on Search
+## Erreur 500
 
-Cause:
+Cause :
 
-```text
-Missing MongoDB index
-```
+Index MongoDB manquant
 
-Fix:
+Correction :
 
-```javascript
-db.leakeddata.createIndex({
-  name: "text"
-})
-```
+db.leakeddata.createIndex({ name: "text" })
 
 ---
 
-## Redis Connection Failure
+## Suggestions vides
 
-Check:
+Vérifier :
 
-```bash
-redis-cli ping
-```
+Mapping Elasticsearch
 
 ---
 
-## Port 8080 Already in Use
+## Port déjà utilisé
 
-Linux:
-
-```bash
 lsof -i :8080
-kill -9 <PID>
-```
+
+kill -9 PID
 
 ---
 
-# 📊 Performance Notes
 
-Current system supports:
+# 21. Conclusion
 
-```text
-1000+ records
-Fast search response
-Redis caching
-Stable API
-```
+Le moteur backend du OSINT Dashboard constitue une plateforme robuste conçue pour des environnements opérationnels critiques.
 
-Planned support:
+Il permet :
 
-```text
-Millions of records
-Elasticsearch indexing
-Distributed search
-High availability
-```
+* une recherche rapide
+* une ingestion massive de données
+* une stabilité système
+* une architecture scalable
+* une exploitation sécurisée
+
+Le système est prêt pour une utilisation en environnement CIRT / SOC.
 
 ---
 
-# 📌 Future Improvements
+# Maintenu par
 
-* Elasticsearch integration
-* Fuzzy search
-* Autocomplete
-* Pagination
-* Advanced filtering
-* Logging system
-* Audit tracking
-* Role-based access control
-* Docker deployment
-* Monitoring (Prometheus / Grafana)
-
----
-
-# 📄 License
-
-Internal research and cybersecurity project.
-
----
-
-# 🙏 Acknowledgments
-
-Centre de Réponse aux Incidents Informatiques (CIRT)
-Agence Nationale des Technologies de l’Information et de la Communication (ANTIC)
-
----
-
-**Maintained by:**
 Tchuente Kenmegne Joel Parfait
+
+Backend Developer
+
+OSINT Analyst
+
+CIRT — ANTIC
