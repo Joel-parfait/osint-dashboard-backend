@@ -33,14 +33,25 @@ public class PersonService {
     private final PersonRepository mongoRepository;
     private final ElasticsearchOperations elasticsearchOperations;
     private final RestClient restClient; 
+    private final SyncService syncService; // Ajout pour la synchronisation
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public PersonService(PersonRepository mongoRepository, 
                          ElasticsearchOperations elasticsearchOperations, 
-                         RestClient restClient) {
+                         RestClient restClient,
+                         SyncService syncService) { // Injection du SyncService
         this.mongoRepository = mongoRepository;
         this.elasticsearchOperations = elasticsearchOperations;
         this.restClient = restClient;
+        this.syncService = syncService;
+    }
+
+    /* ============================================================
+       NOUVEAU : PONT DE SYNCHRONISATION (Appelé par le Controller)
+       ============================================================ */
+    public void syncAllToElasticsearch() {
+        System.out.println("🔄 [CIRT-BRIDGE] Relais vers SyncService pour réindexation...");
+        syncService.fullReindex();
     }
 
     /* ============================================================
@@ -50,7 +61,6 @@ public class PersonService {
         List<String> rawSuggestions = new ArrayList<>();
         try {
             Request request = new Request("POST", "/person_index/_search");
-            // On demande un peu plus de résultats (ex: 20) pour être sûr d'avoir 10 valeurs uniques après le distinct
             String body = "{\"suggest\":{\"osint-suggest\":{\"prefix\":\"" + prefix + "\",\"completion\":{\"field\":\"suggest\",\"size\":20}}}}";
             request.setJsonEntity(body);
 
@@ -72,10 +82,9 @@ public class PersonService {
             System.err.println("❌ Erreur Suggestion Bas Niveau : " + e.getMessage());
         }
 
-        // --- FILTRAGE DES DOUBLONS ---
         return rawSuggestions.stream()
-                .distinct() // Supprime les doublons
-                .limit(10)  // On garde les 10 meilleures suggestions uniques
+                .distinct()
+                .limit(10)
                 .collect(Collectors.toList());
     }
 
