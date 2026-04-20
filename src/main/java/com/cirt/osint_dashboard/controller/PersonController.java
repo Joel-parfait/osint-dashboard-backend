@@ -66,4 +66,22 @@ public class PersonController {
     public ResponseEntity<Map<String, String>> healthCheck() {
         return ResponseEntity.ok(Map.of("status", "UP", "database", "OSINT Hybrid Engine Active"));
     }
+
+    @GetMapping("/sync")
+    public ResponseEntity<Map<String, String>> syncData() {
+        try {
+            System.out.println("🔄 [CIRT-SYNC] Début de la synchronisation manuelle...");
+            service.syncAllToElasticsearch(); // Assure-toi que cette méthode existe dans ton PersonService
+            return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "message", "Synchronisation terminée avec succès"
+            ));
+        } catch (Exception e) {
+            System.err.println("❌ [CIRT-SYNC] Erreur : " + e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of(
+                "status", "ERROR",
+                "message", e.getMessage()
+            ));
+        }
+    }
 }
