@@ -12,7 +12,9 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/search")
-@CrossOrigin(origins = "http://localhost:3000") // Autorise React
+@CrossOrigin(origins = "https://osint-dashboard-frontend.vercel.app") // Autorise React vers domaine (ici c'est vercel)
+//@CrossOrigin(origins = "http://localhost:3000") // Autorise React en local
+
 public class PersonController {
 
     private final PersonService service;
