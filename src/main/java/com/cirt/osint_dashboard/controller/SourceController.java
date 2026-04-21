@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/sources")
-@CrossOrigin(origins = "http://localhost:3000")
+//@CrossOrigin(origins = "http://localhost:3000")
 public class SourceController {
 
     private final SourceRepository repository;

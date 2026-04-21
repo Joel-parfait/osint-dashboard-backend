@@ -10,7 +10,12 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:3000", "http://localhost:3001")
+                // Ajoute ici l'URL exacte de ton frontend Vercel
+                .allowedOrigins(
+                    "http://localhost:3000", 
+                    "http://localhost:3001",
+                    "https://osint-dashboard-frontend.vercel.app" 
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);

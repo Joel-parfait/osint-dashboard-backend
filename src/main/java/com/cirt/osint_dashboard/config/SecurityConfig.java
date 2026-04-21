@@ -18,10 +18,14 @@ public class SecurityConfig {
             // 1. Désactivation du CSRF (nécessaire pour les API REST/Postman/Curl)
             .csrf(csrf -> csrf.disable())
             
-            // 2. Configuration du CORS (pour que React sur le port 3000 puisse parler au port 8080)
+            // 2. Configuration du CORS mise à jour pour la prod
             .cors(cors -> cors.configurationSource(request -> {
                 CorsConfiguration config = new CorsConfiguration();
-                config.setAllowedOrigins(List.of("http://localhost:3000"));
+                config.setAllowedOrigins(List.of(
+                    "http://localhost:3000", 
+                    "http://localhost:3001", 
+                    "https://osint-dashboard-frontend.vercel.app" // TON URL VERCEL
+                ));
                 config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                 config.setAllowedHeaders(List.of("*"));
                 config.setAllowCredentials(true);
