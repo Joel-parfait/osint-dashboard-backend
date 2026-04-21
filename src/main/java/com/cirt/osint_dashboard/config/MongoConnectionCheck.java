@@ -19,9 +19,9 @@ public class MongoConnectionCheck {
     public void printMongoInfo() {
         System.out.println("=== MONGO CONNECTION CHECK ===");
 
-        MongoDatabase database = mongoClient.getDatabase("leaks_db");
+        MongoDatabase database = mongoClient.getDatabase("osint_db");
         database.runCommand(new Document("ping", 1));
 
-        System.out.println("MongoDB connection OK (database: leaks_db)");
+        System.out.println("MongoDB connection OK (database: osint_db)");
     }
 }
