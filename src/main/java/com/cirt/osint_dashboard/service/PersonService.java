@@ -61,7 +61,6 @@ public class PersonService {
         List<String> rawSuggestions = new ArrayList<>();
         try {
             Request request = new Request("POST", "/person_index/_search");
-            // Utilisation d'un body JSON propre
             String body = "{\"suggest\":{\"osint-suggest\":{\"prefix\":\"" + prefix + "\",\"completion\":{\"field\":\"suggest\",\"size\":20}}}}";
             request.setJsonEntity(body);
 
@@ -69,15 +68,12 @@ public class PersonService {
             String responseBody = EntityUtils.toString(response.getEntity());
 
             JsonNode root = objectMapper.readTree(responseBody);
-            // On descend dans l'arbre JSON : suggest -> osint-suggest -> [0] -> options
-            JsonNode suggestArray = root.path("suggest").path("osint-suggest");
+            JsonNode suggestNode = root.path("suggest").path("osint-suggest");
 
-            if (suggestArray.isArray() && suggestArray.size() > 0) {
-                // IMPORTANT : Elasticsearch renvoie un tableau de suggestions
-                JsonNode options = suggestArray.get(0).path("options");
+            if (suggestNode.isArray() && suggestNode.size() > 0) {
+                JsonNode options = suggestNode.get(0).path("options");
                 if (options.isArray()) {
                     for (JsonNode option : options) {
-                        // On récupère le texte suggéré
                         rawSuggestions.add(option.path("text").asText());
                     }
                 }
@@ -86,7 +82,10 @@ public class PersonService {
             System.err.println("❌ Erreur Suggestion Bas Niveau : " + e.getMessage());
         }
 
-        return rawSuggestions.stream().distinct().limit(10).collect(Collectors.toList());
+        return rawSuggestions.stream()
+                .distinct()
+                .limit(10)
+                .collect(Collectors.toList());
     }
 
     /* ============================================================
