@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 /**
  * Service de synchronisation massive MongoDB -> Elasticsearch.
- * Version optimisée avec Auto-complétion multi-champs pour le CIRT - ANTIC.
+ * Version stabilisée pour Render (Batching & Memory Management).
  */
 @Service
 public class SyncService {
@@ -31,6 +31,7 @@ public class SyncService {
     public void fullReindex() {
         try {
             long totalRecords = mongoRepository.count();
+            // Taille de lot réduite à 500 pour stabiliser la RAM sur Render
             int pageSize = 500; 
             int totalPages = (int) Math.ceil((double) totalRecords / pageSize);
 
@@ -39,11 +40,12 @@ public class SyncService {
             for (int i = 0; i < totalPages; i++) {
                 try {
                     Page<PersonData> page = mongoRepository.findAll(PageRequest.of(i, pageSize));
-                    
-                    List<PersonDocument> docs = page.getContent().stream().map(p -> {
+                    List<PersonData> content = page.getContent();
+
+                    if (content.isEmpty()) continue;
+
+                    List<PersonDocument> docs = content.stream().map(p -> {
                         PersonDocument d = new PersonDocument();
-                        
-                        // 1. Mapping des champs standards
                         d.setId(p.getId());
                         d.setName(p.getName());
                         d.setEmail(p.getEmail());
@@ -52,38 +54,43 @@ public class SyncService {
                         d.setOccupation(p.getOccupation());
                         d.setCountry(p.getCountry());
 
-                        // 2. Préparation des entrées pour l'autocomplétion (Multi-champs)
                         List<String> inputs = new ArrayList<>();
                         if (p.getName() != null && !p.getName().isEmpty()) inputs.add(p.getName());
                         if (p.getEmail() != null && !p.getEmail().isEmpty()) inputs.add(p.getEmail());
                         if (p.getPhonenumber() != null && !p.getPhonenumber().isEmpty()) inputs.add(p.getPhonenumber());
-                        if (p.getOccupation() != null && !p.getOccupation().isEmpty()) inputs.add(p.getOccupation());
 
-                        // 3. Injection dans le champ suggest
                         if (!inputs.isEmpty()) {
-                            // On transforme la liste en tableau pour l'objet Completion
                             d.setSuggest(new Completion(inputs.toArray(new String[0])));
                         }
-
                         return d;
                     }).collect(Collectors.toList());
 
-                    // Sauvegarde dans Elasticsearch
+                    // Sauvegarde par lot
                     elasticRepository.saveAll(docs);
 
-                    if (i % 10 == 0) {
+                    // LOGS & PAUSE : Laisse respirer le CPU et le pool MongoDB
+                    if (i % 5 == 0) {
                         double percent = ((double) (i + 1) / totalPages) * 100;
                         System.out.printf("⏳ Progression : %.2f%% (%d / %d documents)%n", 
                                           percent, (i * pageSize), totalRecords);
+                        
+                        // Pause de 200ms pour éviter le "state should be: open"
+                        Thread.sleep(200); 
                     }
+
+                    // Aide le Garbage Collector en vidant les listes lourdes
+                    docs.clear();
+
                 } catch (Exception e) {
                     System.err.println("⚠️ Erreur lors du lot " + i + " : " + e.getMessage());
+                    // En cas d'erreur réseau, on attend 1 seconde avant de continuer
+                    Thread.sleep(1000);
                 }
             }
-            System.out.println("✅ [CIRT-SYNC] Indexation terminée ! Le moteur de suggestion est prêt.");
+            System.out.println("✅ [CIRT-SYNC] Indexation terminée avec succès !");
             
         } catch (Exception e) {
-            System.err.println("❌ Erreur critique : " + e.getMessage());
+            System.err.println("❌ Erreur critique lors de la synchro : " + e.getMessage());
         }
     }
 }
