@@ -31,7 +31,7 @@ public class SyncService {
     public void fullReindex() {
         try {
             long totalRecords = mongoRepository.count();
-            int pageSize = 1000; 
+            int pageSize = 500; 
             int totalPages = (int) Math.ceil((double) totalRecords / pageSize);
 
             System.out.println("🚀 [CIRT-SYNC] Début de l'indexation massive (" + totalRecords + " documents)...");
